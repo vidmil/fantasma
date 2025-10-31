@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tiro no Fantasma 👻</title>
+<style>
+    body {
+        background: black;
+        color: white;
+        margin: 0;
+        overflow: hidden;
+        height: 100vh;
+        cursor: crosshair;
+        font-family: Arial, sans-serif;
+        text-align: center;
+    }
+
+    #container {
+        position: relative;
+        width: 100vw;
+        height: 85vh;
+        overflow: hidden;
+    }
+
+    #fantasma {
+        position: absolute;
+        font-size: 80px;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        animation: mover 4s infinite alternate ease-in-out;
+    }
+
+    @keyframes mover {
+        0% { top: 10%; left: 10%; }
+        25% { top: 70%; left: 80%; }
+        50% { top: 20%; left: 50%; }
+        75% { top: 80%; left: 20%; }
+        100% { top: 40%; left: 60%; }
+    }
+
+    .tiro {
+        position: absolute;
+        width: 15px;
+        height: 15px;
+        background: yellow;
+        border-radius: 50%;
+        transition: all 0.4s linear;
+        z-index: 5;
+    }
+
+    .botoes {
+        position: absolute;
+        bottom: 3%;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 20px;
+    }
+
+    button {
+        background-color: white;
+        color: black;
+        border: none;
+        padding: 12px 25px;
+        font-size: 18px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+
+    button:hover {
+        background-color: gray;
+        color: white;
+    }
+
+    #tela-vitoria {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100vw; height: 100vh;
+        background: rgba(0,0,0,0.9);
+        color: white;
+        display: none;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        font-size: 28px;
+        z-index: 10;
+    }
+
+    #arma {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%) rotate(-10deg);
+        font-size: 50px;
+        z-index: 3;
+        pointer-events: none;
+    }
+</style>
+</head>
+<body>
+
+    <div id="container">
+        <div id="fantasma">👻</div>
+        <div id="arma">🔫</div>
+    </div>
+
+    <!-- Botões de dificuldade -->
+    <div class="botoes">
+        <button onclick="facil()">Fácil</button>
+        <button onclick="dificil()">Difícil</button>
+        <button onclick="hard()">Hard</button>
+    </div>
+
+    <!-- Tela de parabéns -->
+    <div id="tela-vitoria">
+        <p>🎉 Parabéns! Você conseguiu pegar o fantasma! 👻</p>
+        <button onclick="jogarNovamente()">Jogar novamente</button>
+    </div>
+
+<script>
+    const fantasma = document.getElementById('fantasma');
+    const telaVitoria = document.getElementById('tela-vitoria');
+    const arma = document.getElementById('arma');
+
+    let velocidadeFantasma = 4; // padrão
+
+    // Dificuldades
+    function facil() {
+        velocidadeFantasma = 6;
+        fantasma.style.animation = `mover ${velocidadeFantasma}s infinite alternate ease-in-out`;
+    }
+
+    function dificil() {
+        velocidadeFantasma = 3;
+        fantasma.style.animation = `mover ${velocidadeFantasma}s infinite alternate ease-in-out`;
+    }
+
+    function hard() {
+        velocidadeFantasma = 1.5;
+        fantasma.style.animation = `mover ${velocidadeFantasma}s infinite alternate ease-in-out`;
+    }
+
+    // Clique: atira
+    document.addEventListener('click', (e) => {
+        const tiro = document.createElement('div');
+        tiro.className = 'tiro';
+        document.body.appendChild(tiro);
+
+        // Posição inicial (centro inferior da tela, onde está a arma)
+        tiro.style.left = window.innerWidth / 2 + 'px';
+        tiro.style.top = window.innerHeight - 60 + 'px';
+
+        // Faz o tiro ir até o ponto clicado
+        setTimeout(() => {
+            tiro.style.left = e.pageX + 'px';
+            tiro.style.top = e.pageY + 'px';
+        }, 10);
+
+        // Verifica se acertou o fantasma
+        setTimeout(() => {
+            const fantasmaRect = fantasma.getBoundingClientRect();
+            if (
+                e.pageX > fantasmaRect.left &&
+                e.pageX < fantasmaRect.right &&
+                e.pageY > fantasmaRect.top &&
+                e.pageY < fantasmaRect.bottom
+            ) {
+                fantasma.style.display = 'none';
+                telaVitoria.style.display = 'flex';
+            }
+            tiro.remove();
+        }, 400);
+    });
+
+    // Reiniciar o jogo
+    function jogarNovamente() {
+        telaVitoria.style.display = 'none';
+        fantasma.style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
