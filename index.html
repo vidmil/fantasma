@@ -1,186 +1,503 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tiro no Fantasma 👻</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Tiro no Fantasma - Versão Final</title>
 <style>
-    body {
-        background: black;
-        color: white;
-        margin: 0;
-        overflow: hidden;
-        height: 100vh;
-        cursor: crosshair;
-        font-family: Arial, sans-serif;
-        text-align: center;
-    }
+  :root{
+    --bg-dark:#030305;
+    --fog1: rgba(200,200,200,0.06);
+    --fog2: rgba(200,200,200,0.03);
+  }
 
-    #container {
-        position: relative;
-        width: 100vw;
-        height: 85vh;
-        overflow: hidden;
-    }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    height:100vh;
+    background: radial-gradient(circle at 20% 10%, #071020 0%, #030305 30%, #000 100%);
+    color:#fff;
+    font-family: Arial, Helvetica, sans-serif;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+  }
 
-    #fantasma {
-        position: absolute;
-        font-size: 80px;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        animation: mover 4s infinite alternate ease-in-out;
-    }
+  /* ---------- ANIMAÇÃO DE FUNDO (névoa / luzes) ---------- */
+  .scene {
+    position:relative;
+    flex:1 1 auto;
+    overflow:hidden;
+  }
 
-    @keyframes mover {
-        0% { top: 10%; left: 10%; }
-        25% { top: 70%; left: 80%; }
-        50% { top: 20%; left: 50%; }
-        75% { top: 80%; left: 20%; }
-        100% { top: 40%; left: 60%; }
-    }
+  /* camadas de neblina */
+  .fog {
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    z-index:0;
+  }
+  .fog::before, .fog::after {
+    content:"";
+    position:absolute;
+    width:150%;
+    height:120%;
+    left:-25%;
+    top:-10%;
+    background: radial-gradient(ellipse at center, var(--fog1), transparent 40%);
+    filter: blur(40px) saturate(120%);
+    opacity:0.8;
+    animation: fogDrift 18s linear infinite;
+  }
+  .fog::after {
+    left:-15%;
+    top:20%;
+    width:140%;
+    height:120%;
+    background: radial-gradient(ellipse at 30% 40%, var(--fog2), transparent 35%);
+    filter: blur(60px) saturate(90%);
+    opacity:0.7;
+    animation-duration: 26s;
+  }
 
-    .tiro {
-        position: absolute;
-        width: 15px;
-        height: 15px;
-        background: yellow;
-        border-radius: 50%;
-        transition: all 0.4s linear;
-        z-index: 5;
-    }
+  @keyframes fogDrift {
+    0%{ transform: translateX(-5%) translateY(0) }
+    50%{ transform: translateX(5%) translateY(6%) }
+    100%{ transform: translateX(-5%) translateY(0) }
+  }
 
-    .botoes {
-        position: absolute;
-        bottom: 3%;
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        gap: 20px;
-    }
+  /* partículas leves pra efeito de poeira/luz */
+  .particles {
+    position:absolute; inset:0; z-index:0; pointer-events:none;
+  }
+  .particle {
+    position:absolute; width:6px; height:6px; border-radius:50%;
+    background: rgba(255,255,255,0.03);
+    filter: blur(2px);
+    animation: floatUp linear infinite;
+  }
+  @keyframes floatUp{
+    0%{ transform: translateY(80vh) scale(.6); opacity:0 }
+    10%{ opacity:0.4 }
+    100%{ transform: translateY(-20vh) scale(1); opacity:0 }
+  }
 
-    button {
-        background-color: white;
-        color: black;
-        border: none;
-        padding: 12px 25px;
-        font-size: 18px;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: 0.3s;
-    }
+  /* ---------- ÁREA DO JOGO ---------- */
+  #gameArea {
+    position:relative;
+    width:100%;
+    height:calc(100vh - 120px); /* deixa espaço para UI inferior */
+    overflow:hidden;
+    z-index:1;
+  }
 
-    button:hover {
-        background-color: gray;
-        color: white;
-    }
+  .ghost {
+    position:absolute;
+    font-size:90px;
+    user-select:none;
+    pointer-events:none; /* para evitar clique direto, lógica usa colisão de bala */
+    transform: translate(-50%,-50%);
+    z-index:3;
+    transition: transform 0.08s linear;
+    text-shadow: 0 6px 18px rgba(0,0,0,0.7);
+  }
 
-    #tela-vitoria {
-        position: fixed;
-        top: 0; left: 0;
-        width: 100vw; height: 100vh;
-        background: rgba(0,0,0,0.9);
-        color: white;
-        display: none;
-        justify-content: center;
-        align-items: center;
-        flex-direction: column;
-        font-size: 28px;
-        z-index: 10;
-    }
+  .ghost.small{
+    font-size:56px;
+  }
 
-    #arma {
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%) rotate(-10deg);
-        font-size: 50px;
-        z-index: 3;
-        pointer-events: none;
-    }
+  .ghost.white{ color: #fff; filter: drop-shadow(0 0 6px rgba(255,255,255,0.05)); }
+  .ghost.red{  color: #ff6b6b; filter: drop-shadow(0 0 12px rgba(255,90,90,0.18)); }
+
+  .bullet {
+    position:absolute;
+    width:12px;
+    height:12px;
+    border-radius:50%;
+    background:linear-gradient(180deg,#ffef7c,#ff6b6b);
+    box-shadow: 0 0 10px rgba(255,80,80,0.9), 0 0 18px rgba(255,200,80,0.35) inset;
+    z-index:6;
+    pointer-events:none;
+  }
+
+  /* ---------- UI INFERIOR (arma + botões) ---------- */
+  .ui {
+    position:relative;
+    height:120px;
+    z-index:5;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:20px;
+  }
+
+  .controls {
+    position:relative;
+    display:flex;
+    gap:16px;
+    align-items:center;
+  }
+
+  .weapon-wrap{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+  }
+
+  #weapon {
+    font-size:48px;
+    transform: translateY(0);
+    user-select:none;
+    transition: transform .06s ease;
+  }
+
+  .btn {
+    background:white;
+    color:black;
+    border:none;
+    padding:12px 22px;
+    font-size:16px;
+    border-radius:10px;
+    cursor:pointer;
+    transition:all .2s;
+  }
+  .btn:hover{ transform:translateY(-3px); background:#eee }
+
+  .center-ui{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+
+  /* tela de vitória */
+  #winScreen{
+    position:fixed; inset:0;
+    display:none;
+    align-items:center; justify-content:center;
+    z-index:20;
+    background: rgba(0,0,0,0.85);
+    color:white; font-size:28px; flex-direction:column;
+  }
+  #winScreen .btn{ margin-top:18px; }
+
+  /* responsividade */
+  @media (max-width:600px){
+    .ghost{ font-size:64px }
+    .ghost.small{ font-size:44px }
+    #weapon{ font-size:40px }
+  }
 </style>
 </head>
 <body>
+  <div class="scene">
+    <div class="fog"></div>
+    <div class="particles" id="particles"></div>
 
-    <div id="container">
-        <div id="fantasma">👻</div>
-        <div id="arma">🔫</div>
-    </div>
+    <div id="gameArea"></div>
+  </div>
 
-    <!-- Botões de dificuldade -->
-    <div class="botoes">
-        <button onclick="facil()">Fácil</button>
-        <button onclick="dificil()">Difícil</button>
-        <button onclick="hard()">Hard</button>
+  <div class="ui">
+    <div class="center-ui">
+      <div class="weapon-wrap">
+        <div id="weapon">🔫</div>
+        <div style="height:6px"></div>
+        <!-- botões ficam abaixo da arma -->
+        <div class="controls">
+          <button class="btn" id="btnEasy">Fácil</button>
+          <button class="btn" id="btnNormal">Difícil</button>
+          <button class="btn" id="btnHard">Hard</button>
+        </div>
+      </div>
     </div>
+  </div>
 
-    <!-- Tela de parabéns -->
-    <div id="tela-vitoria">
-        <p>🎉 Parabéns! Você conseguiu pegar o fantasma! 👻</p>
-        <button onclick="jogarNovamente()">Jogar novamente</button>
-    </div>
+  <div id="winScreen">
+    <div>🎉 Parabéns! Você venceu todos os fantasmas! 👻</div>
+    <button class="btn" id="btnRestart">Jogar novamente</button>
+  </div>
 
 <script>
-    const fantasma = document.getElementById('fantasma');
-    const telaVitoria = document.getElementById('tela-vitoria');
-    const arma = document.getElementById('arma');
+/* ---------------------- Config e estado ---------------------- */
+const gameArea = document.getElementById('gameArea');
+const weapon = document.getElementById('weapon');
+const winScreen = document.getElementById('winScreen');
+const btnRestart = document.getElementById('btnRestart');
 
-    let velocidadeFantasma = 4; // padrão
+let ghostList = []; // objetos {el, vx, vy, size, color}
+let bullets = [];   // objetos {el, x, y, vx, vy, intervalId}
+let stage = 1;      // 1: um fantasma branco grande / 2: dois vermelhos menores
+let speedMultiplier = 1.0; // alterado pelos botões de dificuldade
 
-    // Dificuldades
-    function facil() {
-        velocidadeFantasma = 6;
-        fantasma.style.animation = `mover ${velocidadeFantasma}s infinite alternate ease-in-out`;
+/* partículas decorativas */
+(function spawnParticles(){
+  const container = document.getElementById('particles');
+  for(let i=0;i<18;i++){
+    const p = document.createElement('div');
+    p.className='particle';
+    p.style.left = Math.random()*100 + '%';
+    p.style.top = (70 + Math.random()*30) + '%';
+    p.style.width = (4 + Math.random()*8) + 'px';
+    p.style.height = p.style.width;
+    p.style.animationDuration = (18 + Math.random()*16) + 's';
+    p.style.opacity = (0.02 + Math.random()*0.08);
+    container.appendChild(p);
+  }
+})();
+
+/* ---------------------- Funções utilitárias ---------------------- */
+function randRange(a,b){ return a + Math.random()*(b-a) }
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)) }
+
+/* cria fantasma no gameArea */
+function createGhost({xPct=50, yPct=40, size='large', color='white', vx=null, vy=null} = {}) {
+  const el = document.createElement('div');
+  el.className = 'ghost ' + (size==='small' ? 'small ' : '') + (color==='red' ? 'red' : 'white');
+  el.innerHTML = '👻';
+  gameArea.appendChild(el);
+
+  // posição em pixels (centro)
+  const rect = gameArea.getBoundingClientRect();
+  const x = rect.width * (xPct/100);
+  const y = rect.height * (yPct/100);
+
+  // velocidade
+  const baseSpeed = (size==='small') ? 0.36 : 0.22; // px per tick scalar
+  const angle = Math.random()*Math.PI*2;
+  const speedFactor = (vx === null || vy === null) ? 1 : 0; // if provided will set explicit below
+  const velx = (vx !== null) ? vx : Math.cos(angle)*baseSpeed*speedMultiplier;
+  const vely = (vy !== null) ? vy : Math.sin(angle)*baseSpeed*speedMultiplier;
+
+  // salvar estado
+  const obj = { el, x, y, vx: velx, vy: vely, size, color };
+  ghostList.push(obj);
+
+  // set initial position
+  updateGhostEl(obj);
+  return obj;
+}
+
+/* atualiza a posição visual de um fantasma */
+function updateGhostEl(g){
+  g.el.style.left = g.x + 'px';
+  g.el.style.top = g.y + 'px';
+  // pequena rotação indicativa do movimento
+  const angle = Math.atan2(g.vy, g.vx) * 180/Math.PI;
+  g.el.style.transform = `translate(-50%,-50%) rotate(${angle}deg)`;
+}
+
+/* remove fantasma do jogo e do array */
+function removeGhost(g){
+  try{ g.el.remove(); }catch(e){}
+  const i = ghostList.indexOf(g);
+  if(i>=0) ghostList.splice(i,1);
+}
+
+/* cria bala com velocidade apontando para target */
+function fireBullet(targetX, targetY){
+  // posição inicial: arma central acima dos botões
+  const weaponRect = weapon.getBoundingClientRect();
+  const startX = weaponRect.left + weaponRect.width/2;
+  const startY = weaponRect.top + weaponRect.height/2;
+
+  const dx = targetX - startX;
+  const dy = targetY - startY;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  if(dist < 6) return;
+
+  // velocidade px per tick (tick = 12ms)
+  const speed = 8; // tuning: maior = bala mais rápida
+  const vx = dx / dist * speed;
+  const vy = dy / dist * speed;
+
+  const el = document.createElement('div');
+  el.className = 'bullet';
+  document.body.appendChild(el);
+
+  const bullet = { el, x:startX, y:startY, vx, vy, intervalId:null };
+  bullets.push(bullet);
+  updateBulletEl(bullet);
+
+  // movement loop
+  bullet.intervalId = setInterval(()=>{
+    bullet.x += bullet.vx;
+    bullet.y += bullet.vy;
+    updateBulletEl(bullet);
+
+    // colisão com fantasmas: ver colisão retangular
+    for(let i = ghostList.length-1; i>=0; i--){
+      const g = ghostList[i];
+      if(checkCollision(bullet, g)){
+        // se for estágio 1 (grande branco) -> duplicar em 2 vermelhos pequenos
+        if(stage === 1){
+          // remove original
+          removeGhost(g);
+
+          // criar dois vermelhos menores em posições ligeiramente deslocadas
+          const rect = gameArea.getBoundingClientRect();
+          const relativeX = (g.x / rect.width) * 100;
+          const relativeY = (g.y / rect.height) * 100;
+
+          // cria dois com velocidades aleatórias (independentes)
+          createGhost({ xPct: relativeX - 6, yPct: relativeY - 4, size:'small', color:'red' });
+          createGhost({ xPct: relativeX + 6, yPct: relativeY + 4, size:'small', color:'red' });
+
+          stage = 2;
+        } else if(stage === 2){
+          // se for vermelho pequeno: remove-o
+          removeGhost(g);
+        }
+
+        // destruir bala no impacto
+        destroyBullet(bullet);
+        checkWinCondition();
+        return;
+      }
     }
 
-    function dificil() {
-        velocidadeFantasma = 3;
-        fantasma.style.animation = `mover ${velocidadeFantasma}s infinite alternate ease-in-out`;
+    // remove se sair da área (margem pra garantir)
+    const W = window.innerWidth, H = window.innerHeight;
+    if(bullet.x < -30 || bullet.y < -30 || bullet.x > W+30 || bullet.y > H+30){
+      destroyBullet(bullet);
+    }
+  }, 12);
+}
+
+/* atualiza visual da bala */
+function updateBulletEl(b){
+  b.el.style.left = b.x + 'px';
+  b.el.style.top = b.y + 'px';
+}
+
+/* destroi bala */
+function destroyBullet(b){
+  try{ b.el.remove(); }catch(e){}
+  if(b.intervalId) clearInterval(b.intervalId);
+  const i = bullets.indexOf(b);
+  if(i>=0) bullets.splice(i,1);
+}
+
+/* checa colisão entre bullet e ghost (rect overlap) */
+function checkCollision(b, g){
+  const be = b.el.getBoundingClientRect();
+  const ge = g.el.getBoundingClientRect();
+
+  return !(be.right < ge.left || be.left > ge.right || be.bottom < ge.top || be.top > ge.bottom);
+}
+
+/* verifica vitória (quando stage 2 e não houver fantasmas) */
+function checkWinCondition(){
+  if(stage === 2 && ghostList.length === 0){
+    showWin();
+  }
+}
+
+/* mostra tela de vitória */
+function showWin(){
+  winScreen.style.display = 'flex';
+}
+
+/* reiniciar jogo */
+function restartGame(){
+  // limpar bullets
+  bullets.slice().forEach(destroyBullet);
+  // limpar fantasmas
+  ghostList.slice().forEach(removeGhost);
+  stage = 1;
+  winScreen.style.display = 'none';
+  spawnInitialGhost();
+}
+
+/* atualiza velocidades existentes (quando trocar dificuldade) */
+function updateGhostSpeeds(){
+  for(const g of ghostList){
+    // recalcula direção mas mantém sentido com multiplier
+    const speedScalar = (g.size === 'small') ? 0.36 : 0.22;
+    const angle = Math.atan2(g.vy, g.vx);
+    g.vx = Math.cos(angle) * speedScalar * speedMultiplier;
+    g.vy = Math.sin(angle) * speedScalar * speedMultiplier;
+  }
+}
+
+/* spawn inicial */
+function spawnInitialGhost(){
+  // coloca um fantasma branco grande no centro superior/medio
+  createGhost({ xPct: 50, yPct: 35, size:'large', color:'white' });
+}
+
+/* ---------------------- Movimento dos fantasmas (physics simples) ---------------------- */
+function ghostMovementLoop(){
+  const rect = gameArea.getBoundingClientRect();
+  for(const g of ghostList){
+    // pequena variação aleatória na direção para parecer natural
+    if(Math.random() < 0.03){
+      const angle = Math.random()*Math.PI*2;
+      const speedScalar = (g.size === 'small') ? 0.36 : 0.22;
+      g.vx = Math.cos(angle) * speedScalar * speedMultiplier;
+      g.vy = Math.sin(angle) * speedScalar * speedMultiplier;
     }
 
-    function hard() {
-        velocidadeFantasma = 1.5;
-        fantasma.style.animation = `mover ${velocidadeFantasma}s infinite alternate ease-in-out`;
-    }
+    // aplicar movimento
+    g.x += g.vx * 12; // multiply by tick (ms) factor to keep tuning with bullet interval
+    g.y += g.vy * 12;
 
-    // Clique: atira
-    document.addEventListener('click', (e) => {
-        const tiro = document.createElement('div');
-        tiro.className = 'tiro';
-        document.body.appendChild(tiro);
+    // rebater nas bordas do gameArea
+    const pad = (g.size==='small') ? 28 : 44;
+    if(g.x < pad){ g.x = pad; g.vx = Math.abs(g.vx); }
+    if(g.x > rect.width - pad){ g.x = rect.width - pad; g.vx = -Math.abs(g.vx); }
+    if(g.y < pad){ g.y = pad; g.vy = Math.abs(g.vy); }
+    if(g.y > rect.height - pad){ g.y = rect.height - pad; g.vy = -Math.abs(g.vy); }
 
-        // Posição inicial (centro inferior da tela, onde está a arma)
-        tiro.style.left = window.innerWidth / 2 + 'px';
-        tiro.style.top = window.innerHeight - 60 + 'px';
+    updateGhostEl(g);
+  }
+  requestAnimationFrame(ghostMovementLoop);
+}
 
-        // Faz o tiro ir até o ponto clicado
-        setTimeout(() => {
-            tiro.style.left = e.pageX + 'px';
-            tiro.style.top = e.pageY + 'px';
-        }, 10);
+/* ---------------------- Eventos de input (tiro) ---------------------- */
+document.addEventListener('click', (ev) => {
+  // se clicou nos botões da UI, ignora tiro
+  if(ev.target.closest('.btn')) return;
 
-        // Verifica se acertou o fantasma
-        setTimeout(() => {
-            const fantasmaRect = fantasma.getBoundingClientRect();
-            if (
-                e.pageX > fantasmaRect.left &&
-                e.pageX < fantasmaRect.right &&
-                e.pageY > fantasmaRect.top &&
-                e.pageY < fantasmaRect.bottom
-            ) {
-                fantasma.style.display = 'none';
-                telaVitoria.style.display = 'flex';
-            }
-            tiro.remove();
-        }, 400);
-    });
+  // pega coordenadas do clique (page coords)
+  fireBullet(ev.pageX, ev.pageY);
 
-    // Reiniciar o jogo
-    function jogarNovamente() {
-        telaVitoria.style.display = 'none';
-        fantasma.style.display = 'block';
-    }
+  // animação visual da arma (pequeno recuo)
+  weapon.style.transform = 'translateY(3px) rotate(-10deg)';
+  setTimeout(()=> weapon.style.transform = 'translateY(0) rotate(-10deg)', 80);
+});
+
+/* ---------------------- dificuldade (modifica speedMultiplier) ---------------------- */
+document.getElementById('btnEasy').addEventListener('click', ()=>{
+  speedMultiplier = 0.7;
+  updateGhostSpeeds();
+});
+document.getElementById('btnNormal').addEventListener('click', ()=>{
+  speedMultiplier = 1.0;
+  updateGhostSpeeds();
+});
+document.getElementById('btnHard').addEventListener('click', ()=>{
+  speedMultiplier = 1.6;
+  updateGhostSpeeds();
+});
+
+btnRestart.addEventListener('click', restartGame);
+
+/* ---------------------- Inicialização ---------------------- */
+spawnInitialGhost();
+updateGhostSpeeds();
+ghostMovementLoop();
+
+/* opcional: expande a área quando redimensiona para reposicionar fantasmas de forma segura */
+window.addEventListener('resize', ()=>{
+  // garante que fantasmas fiquem dentro dos limites
+  const rect = gameArea.getBoundingClientRect();
+  for(const g of ghostList){
+    g.x = clamp(g.x, 20, rect.width - 20);
+    g.y = clamp(g.y, 20, rect.height - 20);
+    updateGhostEl(g);
+  }
+});
 </script>
-
 </body>
 </html>
